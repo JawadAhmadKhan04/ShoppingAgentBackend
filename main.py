@@ -10,6 +10,11 @@ load_dotenv()
 
 app = FastAPI(title="Shopping Agent Backend")
 
+# Health check endpoint for Render
+@app.get("/health")
+def health_check():
+    return {"status": "healthy"}
+
 # Initialize your LLM and agent
 llm = GeminiLLM(api_key=os.getenv("GEMINI_API_KEY"))
 agent = ShoppingAgent(llm=llm)

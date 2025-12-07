@@ -1,3 +1,10 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["main", "agent", "currency_converter", "get_details"]
+
 [project]
 name = "shopping-agent-backend"
 version = "0.1.0"

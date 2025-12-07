@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  shopping-agent-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: shopping-agent-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - CLIENT_ID=${CLIENT_ID}
+      - CLIENT_SECRET=${CLIENT_SECRET}
+    env_file:
+      - .env
+    restart: unless-stopped
+    networks:
+      - shopping-network
+    volumes:
+      - ./logs:/app/logs
+
+networks:
+  shopping-network:
+    driver: bridge
