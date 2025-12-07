@@ -2,6 +2,7 @@
 Currency conversion utilities for shopping agent.
 """
 
+
 def convert_usd_to_pkr(usd_amount: float) -> dict:
     """
     Converts USD to PKR using current exchange rate.
@@ -25,3 +26,29 @@ def convert_usd_to_pkr(usd_amount: float) -> dict:
         "exchange_rate": exchange_rate,
         "currency_pair": "USD/PKR"
     }
+
+
+def convert_pkr_to_usd(pkr_amount: float) -> dict:
+    """
+    Converts PKR to USD using current exchange rate.
+    
+    Args:
+        pkr_amount: Amount in PKR to convert
+        
+    Returns:
+        A dictionary with the conversion details
+    """
+    # Current exchange rate (you can update this or fetch from an API)
+    # As of December 2025, approximate rate is 1 USD = 277-280 PKR
+    print("Currency converter: Converting PKR to USD.")
+    exchange_rate = 278.0
+    
+    usd_amount = pkr_amount / exchange_rate
+    
+    return {
+        "pkr_amount": pkr_amount,
+        "usd_amount": round(usd_amount, 2),
+        "exchange_rate": exchange_rate,
+        "currency_pair": "PKR/USD"
+    }
+

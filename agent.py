@@ -1,56 +1,12 @@
 import json
 from google import generativeai as genai
 from get_details import digikey_product_search
-from currency_converter import convert_usd_to_pkr
+from currency_converter import convert_usd_to_pkr, convert_pkr_to_usd
 from dotenv import load_dotenv
 import os
+from GeminiLLM import GeminiLLM
 
 load_dotenv()
-# -----------------------------
-# 1. GEMINI TOOL-CALLING WRAPPER
-# -----------------------------
-class GeminiLLM:
-
-    def __init__(self, api_key: str):
-        genai.configure(api_key=api_key)
-            
-        self.model = genai.GenerativeModel(model_name="gemini-2.5-flash",)
-
-    def chat_completion(self, messages, tools=None, tool_choice="auto"):
-        converted_messages = [
-            {"role": m["role"], "parts": [m["content"]]} for m in messages
-        ]
-
-        if tools:
-            tool_config = {"function_calling_config": {"mode": "AUTO"}}
-        else:
-            tool_config = None
-
-        response = self.model.generate_content(
-            contents=converted_messages,
-            tools=tools,
-            tool_config=tool_config
-        )
-
-        # Parse tool calls
-        tool_calls = []
-        content = ""
-        
-        for part in getattr(response, "parts", []):
-            if getattr(part, "function_call", None):
-                tool_calls.append({
-                    "id": "toolcall-1",
-                    "name": part.function_call.name,
-                    "arguments": json.dumps(dict(part.function_call.args))
-                })
-            elif hasattr(part, "text"):
-                content = part.text
-
-        return {
-            "content": content,
-            "tool_calls": tool_calls if tool_calls else None
-        }
-
 
 # -----------------------------
 # 2. SHOPPING AGENT
@@ -95,6 +51,20 @@ class ShoppingAgent:
                             },
                             "required": ["usd_amount"]
                         }
+                    },
+                    {
+                        "name": "convert_pkr_to_usd",
+                        "description": "Convert prices from PKR (Pakistani Rupees) to USD (US Dollars). Use this when you need to help users understand prices in USD.",
+                        "parameters": {
+                            "type": "OBJECT",
+                            "properties": {
+                                "pkr_amount": {
+                                    "type": "NUMBER",
+                                    "description": "The amount in PKR to convert to USD. Example: 1000.00, 5000.50"
+                                }
+                            },
+                            "required": ["pkr_amount"]
+                        }
                     }
                 ]
             }
@@ -102,7 +72,7 @@ class ShoppingAgent:
 
     def run(self, user_message: str) -> str:
         system_msg = (
-        "You are a Shopping Agent that helps users find products on Digi-Key. "
+        "You are a Shopping Agent that helps users find products on Digi-Key and understand pricing in multiple currencies. "
         "IMPORTANT: You MUST use the digikey_product_search tool for ANY request to find, search, or look up products. "
         "Extract the key search terms from the user's request and call the tool to search. "
         "When you receive product results from the API, ANALYZE ALL OPTIONS AND RECOMMEND ONLY THE SINGLE BEST PRODUCT. "
@@ -110,9 +80,21 @@ class ShoppingAgent:
         "Return ONLY ONE PRODUCT RECOMMENDATION with its details. Do NOT list multiple options. "
         "If results are provided by the API, present the best one regardless of the product category. "
         "Do NOT assume what Digi-Key sells - trust the API results. "
-        "If the user asks for prices in PKR, use the convert_usd_to_pkr tool to convert USD prices to PKR. "
+        "\n"
+        "CURRENCY CONVERSION TOOLS:\n"
+        "- Use convert_usd_to_pkr tool: When you need to convert USD prices to Pakistani Rupees (PKR). "
+        "- Use convert_pkr_to_usd tool: When you need to convert Pakistani Rupees (PKR) prices to USD. "
+        "- Always provide both USD and PKR prices in your final response for clarity.\n"
+        "\n"
+        "EXAMPLE CHAIN-OF-THOUGHT:\n"
+        "User: 'Find me a 10k resistor and tell me the price in PKR'\n"
+        "1. Search for '10k resistor' using digikey_product_search\n"
+        "2. Receive product: unit_price = 0.05 USD, quantity = 1000\n"
+        "3. Convert 0.05 USD to PKR using convert_usd_to_pkr(0.05)\n"
+        "4. Response: 'I found a 10k Resistor at 0.05 USD (≈13.90 PKR). With 1000 units available, it's a reliable choice.'\n"
+        "\n"
         "If no products are found within the price range, recommend the cheapest available option. "
-        "Make a professional response to the user"
+        "Make a professional response to the user."
         )
 
 
@@ -137,6 +119,9 @@ class ShoppingAgent:
                 tool_result = digikey_product_search(**tool_args)
             elif tool_name == "convert_usd_to_pkr":
                 conversion_result = convert_usd_to_pkr(**tool_args)
+                tool_result = json.dumps(conversion_result)
+            elif tool_name == "convert_pkr_to_usd":
+                conversion_result = convert_pkr_to_usd(**tool_args)
                 tool_result = json.dumps(conversion_result)
             else:
                 return "ERROR: Unrecognized tool."
@@ -163,9 +148,9 @@ class ShoppingAgent:
 # -----------------------------
 # 3. USAGE
 # -----------------------------
-# agent = ShoppingAgent(
-#     GeminiLLM(api_key=os.getenv("GEMINI_API_KEY"))
-# )
+agent = ShoppingAgent(
+    GeminiLLM(api_key=os.getenv("GEMINI_API_KEY"))
+)
 
-# answer = agent.run("I need an AC to DC converter.")
-# print(answer)
+answer = agent.run("Find me a 10k resistor and tell me the price in PKR")
+print(answer)
